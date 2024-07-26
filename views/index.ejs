@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chatroom</title>
+  <style>
+    html,
+    body {
+      height: 100% !important;
+      overflow: hidden;
+    }
+  </style>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+  <div class="h-100 d-flex mx-2 justify-content-center align-items-center mt-3">
+    <div>
+      <p class="lead">Welcome to the chatroom!</p>
+      <!-- This section should be dynamically generated based on the user's authentication status -->
+      <!-- If the user is authenticated -->
+      <div id="authenticated-user" style="display: none;">
+        <p class="lead" style="color: brown">
+          You are logged in as
+          <span class="px-1" style="color: rgb(0, 0, 0); font-weight: bold" id="username-placeholder">Username</span>
+        </p>
+        <br />
+        <div class="d-flex flex-column align-items-center">
+          <button onclick="window.location.href='create_room.ejs'" class="btn btn-sm btn-primary mb-3">
+            Create Room
+          </button>
+          <button onclick="window.location.href='join_room.ejs'" class="btn btn-sm btn-success">
+            Join Room
+          </button>
+        </div>
+        <br />
+        <!-- Uncomment the following line to add a logout link -->
+        <!-- <a href="logout.html" class="text-primary">Logout</a> -->
+      </div>
+      <!-- If the user is not authenticated -->
+      <div id="unauthenticated-user" style="display: none;">
+        <p class="lead">You must login to access the chat room.</p>
+        <a class="strong" href="login">Login</a>
+        <br />
+        <hr />
+        <p class="text-muted">
+          Don't have an account? <a href="register">Register</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Example JavaScript to toggle between authenticated and unauthenticated user views
+    const isAuthenticated = false; // Change this to true if the user is authenticated
+    const username = "exampleUser"; // Set the username of the authenticated user
+
+    if (isAuthenticated) {
+      document.getElementById("authenticated-user").style.display = "block";
+      document.getElementById("username-placeholder").innerText = username;
+    } else {
+      document.getElementById("unauthenticated-user").style.display = "block";
+    }
+  </script>
+</body>
+</html>

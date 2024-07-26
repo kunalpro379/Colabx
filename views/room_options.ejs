@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatroom</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    
+    <style>
+        html,
+        body {
+            height: 100% !important;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="h-100 d-flex mx-2 justify-content-center align-items-center mt-3">
+        <div>
+            <p class="lead">Welcome to the chatroom!</p>
+
+            <!-- Example of displaying logged-in user -->
+            <p class="lead" style="color: brown">
+                You are logged in as
+                <span class="px-1" style="color: rgb(0, 0, 0); font-weight: bold" id="username"></span>
+            </p>
+            <br />
+
+            <div class="d-flex flex-column align-items-center">
+                <!-- Create Room Form -->
+                <button onclick="createRoom();" class="btn btn-sm btn-primary mb-3">
+                    Create Room
+                </button>
+                <p class="lead">OR</p>
+                <!-- Join Room Form -->
+                <div class="d-flex" style="margin-left: 5px; margin-right: 5px">
+                    <input
+                        placeholder="Enter room name"
+                        style="font-size: 0.8rem; min-width: 150px !important"
+                        type="text"
+                        class="form-control mx-1"
+                        name="room-name"
+                        id="room"
+                    />
+                    <input
+                        placeholder="Enter room password"
+                        style="font-size: 0.8rem; min-width: 150px !important"
+                        type="password"
+                        class="form-control mx-1"
+                        name="room-password"
+                        id="password"
+                    />
+                    <button onclick="joinRoom();" class="btn btn-sm btn-success">
+                        Join
+                    </button>
+                </div>
+            </div>
+            <br />
+
+            <p class="lead" style="color: brown">
+                Already joined to the Room?
+                <span class="px-1" style="color: rgb(0, 0, 0); font-weight: bold; font-size: medium;"><a href="/colabx/{{ room._id }}">Navigate to the Room</a>
+                </span>
+            </p>
+
+            <!-- Display login/register options if user is not logged in -->
+            <p class="lead">You must login to access the chat room.</p>
+            <a class="strong" href="/login">Login</a>
+            <br />
+            <hr />
+            <p class="text-muted">
+                Don't have an account? <a href="/register">Register</a>
+            </p>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        // Function to fetch and display user data
+        async function getUserData() {
+            const token = localStorage.getItem('token');
+
+            if (!token) {
+                console.error('No token found in localStorage');
+                return;
+            }
+
+            try {
+                const response = await fetch('/user', {
+                    method: 'GET',
+                    headers: {
+                        'x-auth-token': `${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                const userData = await response.json();
+                console.log('User data:', userData);
+
+                // Store user data in localStorage for future use
+                localStorage.setItem('userData', JSON.stringify(userData));
+                localStorage.setItem('userId', userData._id);
+                console.log(`\n\n\n\n\n\n\n\n\n\n\n ${localStorage.getItem("userId")}\n \n`)
+                // Update HTML element with user data
+                const usernameElement = document.getElementById('username');
+                if (usernameElement) {
+                    usernameElement.textContent = userData.name;
+                } else {
+                    console.error('Username element not found');
+                }
+
+                // Add more fields as needed
+
+            } catch (error) {
+                console.error('Error fetching user data:', error.message);
+                // Handle error scenario, e.g., display a message to the user
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', getUserData);
+
+        // Function to join a room
+        async function joinRoom() {
+            let roomname = document.getElementById("room").value;
+            let password = document.getElementById("password").value;
+
+            try {
+                const response = await fetch('/api/room_auth/join_room', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-auth-token': localStorage.getItem('token') // Assuming the token is stored in localStorage
+                    },
+                    body: JSON.stringify({ room_name: roomname, room_password: password })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('room data:', data);
+
+                    // Store roomId in localStorage for future use
+                    sessionStorage.setItem('roomId', data.roomId);
+                    console.log('room id:', localStorage.getItem('roomId'));
+                    // Emit joinRoom event to server via Socket.IO
+                    socket.emit('joinRoom', { userId:localStorage.getItem('userId') ,roomId: data.roomId });
+
+                    // Redirect to the room page
+                    window.location.href = `/colabx/${data.roomId}/`;
+                } else {
+                    const errorData = await response.json();
+                    alert(errorData.msg || 'Error joining room');
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                alert('An unexpected error occurred');
+            }
+        }
+
+        // Function to create a room
+        async function createRoom() {
+            try {
+                const response = await fetch('/api/room_auth/create_room', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-auth-token': localStorage.getItem('token') // Retrieve token from localStorage
+                    },
+                    body: JSON.stringify({ /* Include any necessary request body parameters */ })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log("Room created successfully:", data);
+
+                    // Store roomId in localStorage for future use
+                    sessionStorage.setItem('roomId', data.roomId);
+
+                    // Emit joinRoom event to server via Socket.IO
+                    socket.emit('joinRoom', { roomId: data.roomId });
+
+                    // Redirect to the room page
+                    window.location.href = `/colabx/${data.roomId}/`;
+                } else {
+                    const errorData = await response.json();
+                    alert(errorData.msg || 'Error creating room');
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                alert('An unexpected error occurred');
+            }
+        }
+    </script>
+</body>
+</html>

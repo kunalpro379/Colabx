@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join Room</title>
+</head>
+<body>
+    <h2>Join an Existing Room</h2>
+    <form id="joinRoomForm" action="/api/room_options/join_room/" method="post">
+        <!-- CSRF token for security (if using Django or similar framework) -->
+        <!-- <input type="hidden" name="csrfmiddlewaretoken" value="your_csrf_token_here" /> -->
+
+        <label for="room_name">Room Name:</label>
+        <input type="text" id="room_name" name="room_name" required /><br /><br />
+
+        <label for="room_password">Room Password:</label>
+        <input type="password" id="room_password" name="room_password" required /><br /><br />
+
+        <button type="submit">Join Room</button>
+    </form>
+
+    <p id="errorMessage" style="color: red"></p>
+
+    <script src="/ui_scripts/join_room.js">
+
+    </script>
+</body>
+</html>
