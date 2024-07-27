@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{roomName} | CollabX</title>
+    <title>CollabX</title>
     <link rel="stylesheet" href="/static/chat.css">
     <link rel="stylesheet" href="/static/shared.css">
 </head>
@@ -55,10 +55,8 @@
                     <div class="msgimg-container">
                         <img src="../static/icons/kunal.png" class="msgimg" />
                     </div>
-                    <div class="active">
-                        <p>{{username}}</p>
-                    </div>
-                    <div>ChatRoom | roomname</div>
+                    <p id="activeUsername"></p>
+                    <div id="chatRoomName">ChatRoom | roomname</div>
                 </div>
 
                 <div class="chats">
@@ -94,7 +92,7 @@
             <section class="container">
                 <div class="fixed-options">
                     <div class="menu-card" id="menuCard">
-                        <ul class="menu-options">
+                        <ul class="menu-options" style="width: 200px;">
                             <li class="option tool selected" id="rectangle">
                                 <button><i class="fas fa-square"></i></button>
                             </li>
@@ -113,10 +111,10 @@
                             <li class="option tool" id="eraser">
                                 <button><i class="fas fa-eraser"></i></button>
                             </li>
-                            <li class="option color-option selected" style="background-color: #fff"></li>
+                            <!-- <li class="option color-option selected" style="background-color: #fff"></li>
                             <li class="option color-option" style="background-color: #000"></li>
                             <li class="option color-option" style="background-color: #e0202e"></li>
-                            <li class="option color-option" style="background-color: #6dd400"></li>
+                            <li class="option color-option" style="background-color: #6dd400"></li> -->
                             <li class="option">
                                 <input type="color" id="colorPicker" value="#4e4e4e" />
                             </li>
@@ -166,48 +164,59 @@
             display: block;
         }
     </style>
-<script src="../ui_scripts/home.js"> console.log("i gone through the script")</script>
-<script>
+    <script src="../ui_scripts/home.js"></script>
+    <script src="/static/shared.js"></script>
+    <script src="/static/resizer.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/js/all.min.js"></script>
+    <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const roomName = sessionStorage.getItem('room_name');
+            const username = sessionStorage.getItem('uname');
 
-</script>
-<script>document.addEventListener('DOMContentLoaded', () => {
-    const sendBtn = document.getElementById("sendBtn");
-    const msg = document.getElementById("msg");
-    const chatbox = document.getElementById("chatbox");
+            document.title = `${roomName} | CollabX`;
+            const chatRoomNameElement = document.getElementById('chatRoomName');
+            const activeUsernameElement = document.getElementById('activeUsername');
 
-    sendBtn.addEventListener('click', () => {
-        sendGroupMsg();
-    });
-});
-</script>
-<script src="/static/shared.js"></script>
-<script src="/static/resizer.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/js/all.min.js"></script>
-<script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
-    
-<script src="/socket.io/socket.io.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const socket = io();
-    const codeEditor = document.getElementById('codeEditor');
-    const roomId = sessionStorage.getItem('roomId');
+            if (chatRoomNameElement) {
+                chatRoomNameElement.textContent = `ChatRoom | ${roomName}`;
+            } else {
+                console.error('chatRoomName element not found');
+            }
 
-    console.log(`Connecting to room: ${roomId}`);
+            if (activeUsernameElement) {
+                activeUsernameElement.textContent = username;
+            } else {
+                console.error('activeUsername element not found');
+            }
 
-    socket.emit('joinCode', { roomId });
+            const sendBtn = document.getElementById("sendBtn");
+            const msg = document.getElementById("msg");
+            const chatbox = document.getElementById("chatbox");
 
-    codeEditor.addEventListener('input', () => {
-        const code = codeEditor.value;
-        console.log(`Emitting code change: ${code}`);
-        socket.emit('codeChange', { code, roomId });
-    });
+            sendBtn.addEventListener('click', () => {
+                sendGroupMsg();
+            });
 
-    socket.on('codeChange', ({ code }) => {
-        console.log(`Received code change: ${code}`);
-        codeEditor.value = code;
-    });
-});
+            const socket = io();
+            const codeEditor = document.getElementById('codeEditor');
+            const roomId = sessionStorage.getItem('roomId');
 
-</script>
+            console.log(`Connecting to room: ${roomId}`);
+
+            socket.emit('joinCode', { roomId });
+
+            codeEditor.addEventListener('input', () => {
+                const code = codeEditor.value;
+                console.log(`Emitting code change: ${code}`);
+                socket.emit('codeChange', { code, roomId });
+            });
+
+            socket.on('codeChange', ({ code }) => {
+                console.log(`Received code change: ${code}`);
+                codeEditor.value = code;
+            });
+        });
+    </script>
 </body>
 </html>

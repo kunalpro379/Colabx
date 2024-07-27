@@ -44,7 +44,6 @@ const userSchema = mongoose.Schema({
     role: {
         type: String,
       //  enum: AvailableUserRoles,
-        required: true,
       },
       password: {
         type: String,
@@ -77,7 +76,7 @@ const userSchema = mongoose.Schema({
     bio: { type: String },
     repassword: {
         type: String,
-        required: [true, "Password is required"],
+        //required: [true, "Password is required"],
       }, 
          address: { type: String, default: "" },
     type: { type: String, default: "user", admin: false },

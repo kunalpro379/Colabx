@@ -13,6 +13,7 @@ const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
 const DB = process.env.DB;
+// const user = require("./routes/user");
 
 const authRouter = require("./routes/auth");
 const uiRouter = require('./routes/ui');
@@ -23,7 +24,7 @@ app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(morgan('dev'));
-
+// app.use('/', user);
 // Routes setup
 app.use(authRouter);
 app.use('/', uiRouter);
@@ -54,7 +55,8 @@ io.on('connection', (socket) => {
             socket.join(roomId);
             console.log(`User ${socket.id} associated with ${userId}`);
             console.log(`User ${userId} joined room ${roomId}`);
-            socket.emit('userConnected', { userId, roomId });
+            io.to(roomId).emit('userJoined', { userId, roomId, username: socket.username });
+            io.to(roomId).emit('userConnected', { userId, roomId, username: userId });
         } catch (error) {
             console.error('Error joining room:', error);
         }

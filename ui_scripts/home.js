@@ -1,6 +1,9 @@
 //let roomId = "668eefe5d55039aa229da856";
 const userId=sessionStorage.getItem('userId_set');
+uname=sessionStorage.getItem('uname')
+console.log('Username:', uname);
 roomId=sessionStorage.getItem('roomId');
+console.log(roomId);
 async function fetchMessages(roomId) {
     try {
         const response = await fetch(`/api/room_auth/${roomId}/messages`, {
@@ -46,11 +49,13 @@ function displayMessage({ message, username }) {
     if (username === userData._id) {
         messageElement.innerHTML = `
             <div class="outgoing-chats">
-                <div class="outgoing-chats-img"></div>
-                <div class="outgoing-msg">
+             
+        <div class="outgoing-msg">
                     <div class="outgoing-chats-msg">
+<b style="color: white;">${username}</b>
                         <p>${message}</p>
                         <span class="time">${getCurrentTime()}</span>
+                        
                     </div>
                 </div>
             </div>
@@ -58,9 +63,10 @@ function displayMessage({ message, username }) {
     } else {
         messageElement.innerHTML = `
             <div class="received-chats">
-                <div class="received-chats-img"></div>
                 <div class="received-msg">
                     <div class="received-msg-inbox">
+                        <b style="color: white;">${username}</b>
+
                         <p>${message}</p>
                         <span class="time">${getCurrentTime()}</span>
                     </div>
@@ -167,7 +173,15 @@ fetchUserData().then(data => {
 
     socket.on('userConnected', (data) => {
         console.log(`User ${data.userId} joined room ${data.roomId}`);
+        if (data.userId) {
+            const userJoinedElement = document.createElement('div');
+            userJoinedElement.classList.add("user-joined");
+            userJoinedElement.innerHTML = `<b style="color: white;">${data.userId}</b> <span style="color: white;">joined the room</span>`;
+            chatbox.appendChild(userJoinedElement);
+            chatbox.scrollTop = chatbox.scrollHeight;
+        }
     });
+    
 
     socket.on('groupMessage', (data) => {
         console.log('Received group message:', data);

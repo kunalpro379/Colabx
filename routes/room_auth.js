@@ -1,7 +1,10 @@
 const express = require("express");
 const Router = express.Router();
 const auth = require("../middlewares/auth");
-const Message=require('../models/chat_models/MsgModel.js');
+const Message = require('../models/chat_models/MsgModel.js');
+const Room = require('../models/room.models.js'); // Ensure you have Room model
+const User = require('../models/user.model.js'); // Ensure you have User model
+
 const { joinRoom, createRoom, getRoomData, sendMessage, getMessages } = require('../controllers/roomAuthControllers');
 
 // Route for joining a room
@@ -35,14 +38,13 @@ Router.get('/:roomId', auth, async (req, res) => {
         res.status(500).send('Server Error');
     }
 });
-// routes/roomRoutes.js
 
 Router.post('/:roomId/send_message', auth, async (req, res) => {
     const { roomId } = req.params;
     const { userId, message } = req.body;
     console.log(`Room ID: ${roomId}, User ID: ${userId}, Message: ${message}`);
     try {
-        const groupMsg = new Message({ username: userId, message:message, group: roomId });
+        const groupMsg = new Message({ username: userId, message: message, group: roomId });
         await groupMsg.save();
         const io = req.app.get('io');
         io.to(roomId).emit('groupMessage', groupMsg);
@@ -53,13 +55,11 @@ Router.post('/:roomId/send_message', auth, async (req, res) => {
     }
 });
 
-
-
 Router.get('/:roomId/messages', auth, async (req, res) => {
     try {
         const { roomId } = req.params;
         // Fetch messages from the database for the given roomId
-        const messages = await Message.find({ roomId: roomId }).sort({ createdAt: 1 });
+        const messages = await Message.find({ group: roomId }).sort({ createdAt: 1 });
         res.json({ messages });
     } catch (error) {
         res.status(500).json({ error: 'Error fetching messages' });

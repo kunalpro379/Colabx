@@ -26,6 +26,10 @@
                 You are logged in as
                 <span class="px-1" style="color: rgb(0, 0, 0); font-weight: bold" id="username"></span>
             </p>
+            <p class="lead" style="color: brown">
+                Chatroom Name:
+                <span class="px-1" style="color: rgb(0, 0, 0); font-weight: bold" id="roomName"></span>
+            </p>
             <br />
 
             <div class="d-flex flex-column align-items-center">
@@ -61,7 +65,8 @@
 
             <p class="lead" style="color: brown">
                 Already joined to the Room?
-                <span class="px-1" style="color: rgb(0, 0, 0); font-weight: bold; font-size: medium;"><a href="/colabx/{{ room._id }}">Navigate to the Room</a>
+                <span class="px-1" style="color: rgb(0, 0, 0); font-weight: bold; font-size: medium;">
+                    <a href="/colabx/{{ room._id }}">Navigate to the Room</a>
                 </span>
             </p>
 
@@ -82,48 +87,71 @@
 
         // Function to fetch and display user data
         async function getUserData() {
-            const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token');
 
-            if (!token) {
-                console.error('No token found in localStorage');
-                return;
+    if (!token) {
+        console.error('No token found in localStorage');
+        return;
+    }
+
+    try {
+        const response = await fetch('/user', {
+            method: 'GET',
+            headers: {
+                'x-auth-token': `${token}`,
+                'Content-Type': 'application/json'
             }
+        });
 
-            try {
-                const response = await fetch('/user', {
-                    method: 'GET',
-                    headers: {
-                        'x-auth-token': `${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
 
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
+        const userData = await response.json();
+        console.log('User data:', userData);
+        sessionStorage.setItem('uname', userData.name);
+
+        // Store user data in localStorage for future use
+        localStorage.setItem('userData', JSON.stringify(userData));
+        localStorage.setItem('userId', userData._id);
+
+        // Update HTML element with user data
+        const usernameElement = document.getElementById('username');
+        if (usernameElement) {
+            usernameElement.textContent = userData.name;
+        } else {
+            console.error('Username element not found');
+        }
+
+        // Fetch and display chatroom name if available
+        const roomNameElement = document.getElementById('roomName');
+        const roomId = sessionStorage.getItem('roomId');
+        if (roomNameElement && roomId) {
+            const roomResponse = await fetch(`/api/room_auth/${roomId}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-auth-token': token
                 }
+            });
 
-                const userData = await response.json();
-                console.log('User data:', userData);
-
-                // Store user data in localStorage for future use
-                localStorage.setItem('userData', JSON.stringify(userData));
-                localStorage.setItem('userId', userData._id);
-                console.log(`\n\n\n\n\n\n\n\n\n\n\n ${localStorage.getItem("userId")}\n \n`)
-                // Update HTML element with user data
-                const usernameElement = document.getElementById('username');
-                if (usernameElement) {
-                    usernameElement.textContent = userData.name;
-                } else {
-                    console.error('Username element not found');
-                }
-
-                // Add more fields as needed
-
-            } catch (error) {
-                console.error('Error fetching user data:', error.message);
-                // Handle error scenario, e.g., display a message to the user
+            if (roomResponse.ok) {
+                const roomData = await roomResponse.json();
+                console.log('Room data:', roomData); // Add this log
+                roomNameElement.textContent = roomData.room_name || 'Unknown';
+                sessionStorage.setItem('room_name', roomData.room_name); // Store room_name in sessionStorage
+            } else {
+                console.error('Error fetching room data');
+                roomNameElement.textContent = 'Error fetching room name';
             }
         }
+
+    } catch (error) {
+        console.error('Error fetching user data:', error.message);
+        // Handle error scenario, e.g., display a message to the user
+    }
+}
+
 
         document.addEventListener('DOMContentLoaded', getUserData);
 
@@ -144,13 +172,14 @@
 
                 if (response.ok) {
                     const data = await response.json();
-                    console.log('room data:', data);
+                    console.log('Room data:', data);
 
                     // Store roomId in localStorage for future use
                     sessionStorage.setItem('roomId', data.roomId);
-                    console.log('room id:', localStorage.getItem('roomId'));
+                    sessionStorage.setItem('room_name', data.room_name);
+                    console.log('Room id:', sessionStorage.getItem('roomId'));
                     // Emit joinRoom event to server via Socket.IO
-                    socket.emit('joinRoom', { userId:localStorage.getItem('userId') ,roomId: data.roomId });
+                    socket.emit('joinRoom', { userId: localStorage.getItem('userId'), roomId: data.roomId });
 
                     // Redirect to the room page
                     window.location.href = `/colabx/${data.roomId}/`;

@@ -8,26 +8,24 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let isDrawing = false;
     let prevMouseX, prevMouseY;
-    let startX, startY; // Starting points for drawing shapes
+    let startX, startY; // Added for rectangle drawing
     let selectedTool = 'brush';
     let brushWidth = 5;
     let selectedColor = '#4e4e4e';
     let scale = 1;
-    let shapes = []; // Array to store shapes
 
     // Set up canvas dimensions
     function resizeCanvas() {
         canvas.width = canvas.offsetWidth;
         canvas.height = canvas.offsetHeight;
         setCanvasBackground();
-        redrawShapes();
     }
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
     // Draw the canvas background
     function setCanvasBackground() {
-        ctx.fillStyle = backgroundColor;
+        ctx.fillStyle = backgroundColor; // Background color
         ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
@@ -41,61 +39,20 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Store shape data
-    function storeShapeData(data) {
-        shapes.push(data);
-        redrawShapes();
-    }
+    // Draw a rectangle
+    function drawRect(e) {
+        const x = Math.min(startX, e.offsetX);
+        const y = Math.min(startY, e.offsetY);
+        const width = Math.abs(startX - e.offsetX);
+        const height = Math.abs(startY - e.offsetY);
 
-    // Redraw all shapes on the canvas
-    function redrawShapes() {
-        setCanvasBackground(); // Reset background
-
-        shapes.forEach(shape => {
-            ctx.beginPath();
-            ctx.strokeStyle = shape.color;
-            ctx.lineWidth = shape.lineWidth;
-            ctx.lineCap = 'round';
-
-            if (shape.tool === 'rectangle') {
-                drawRect(shape.x0, shape.y0, shape.x1, shape.y1);
-            } else if (shape.tool === 'circle') {
-                drawCircle(shape.x0, shape.y0, shape.x1, shape.y1);
-            } else if (shape.tool === 'triangle') {
-                drawTriangle(shape.x0, shape.y0, shape.x1, shape.y1);
-            } else {
-                ctx.moveTo(shape.x0, shape.y0);
-                ctx.lineTo(shape.x1, shape.y1);
-                ctx.stroke();
-            }
-
-            ctx.closePath();
-        });
-    }
-
-    // Draw functions
-    function drawRect(x0, y0, x1, y1) {
-        const x = Math.min(x0, x1);
-        const y = Math.min(y0, y1);
-        const width = Math.abs(x0 - x1);
-        const height = Math.abs(y0 - y1);
-
-        ctx.strokeRect(x, y, width, height);
-    }
-
-    function drawCircle(x0, y0, x1, y1) {
-        const radius = Math.sqrt(Math.pow((x0 - x1), 2) + Math.pow((y0 - y1), 2));
-
-        ctx.arc(x0, y0, radius, 0, 2 * Math.PI);
-        ctx.stroke();
-    }
-
-    function drawTriangle(x0, y0, x1, y1) {
-        ctx.moveTo(x0, y0);
-        ctx.lineTo(x1, y1);
-        ctx.lineTo(x0 * 2 - x1, y1);
+        ctx.beginPath();
+        if (!fillColor.checked) {
+            ctx.strokeRect(x, y, width, height);
+        } else {
+            ctx.fillRect(x, y, width, height);
+        }
         ctx.closePath();
-        ctx.stroke();
     }
 
     // Handle starting the drawing
@@ -112,15 +69,16 @@ document.addEventListener('DOMContentLoaded', function () {
         prevMouseX = e.offsetX;
         prevMouseY = e.offsetY;
 
-        if (selectedTool === 'rectangle' || selectedTool === 'circle' || selectedTool === 'triangle') {
-            startX = e.offsetX; // Starting point for shapes
-            startY = e.offsetY; // Starting point for shapes
+        if (selectedTool === 'rectangle') {
+            startX = e.offsetX; // Starting point for rectangle
+            startY = e.offsetY; // Starting point for rectangle
         }
 
         ctx.beginPath();
         ctx.lineWidth = brushWidth;
         ctx.lineCap = 'round';
         ctx.strokeStyle = selectedTool === 'eraser' ? backgroundColor : selectedColor;
+        ctx.fillStyle = selectedTool === 'eraser' ? backgroundColor : selectedColor;
     }
 
     // Handle the drawing action
@@ -157,18 +115,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
             socket.emit('draw', drawData);
 
-        } else if (selectedTool === 'rectangle' || selectedTool === 'circle' || selectedTool === 'triangle') {
-            // Draw the shape based on the selected tool
-            ctx.strokeStyle = selectedColor;
-            ctx.lineWidth = brushWidth;
+        } else if (selectedTool === 'rectangle') {
+            // Draw the rectangle while the mouse is moving
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+            setCanvasBackground(); // Reset background
+            drawRect(e);
 
-            if (selectedTool === 'rectangle') {
-                drawRect(startX, startY, e.offsetX, e.offsetY);
-            } else if (selectedTool === 'circle') {
-                drawCircle(startX, startY, e.offsetX, e.offsetY);
-            } else if (selectedTool === 'triangle') {
-                drawTriangle(startX, startY, e.offsetX, e.offsetY);
-            }
+            // Send rectangle drawing data to the server
+            const drawData = {
+                roomId: roomId,
+                tool: 'rectangle',
+                color: selectedColor,
+                lineWidth: brushWidth,
+                x0: startX,
+                y0: startY,
+                x1: e.offsetX,
+                y1: e.offsetY,
+                fillColor: fillColor.checked
+            };
+
+            socket.emit('draw', drawData);
 
         } else {
             ctx.lineTo(e.offsetX, e.offsetY);
@@ -187,7 +153,6 @@ document.addEventListener('DOMContentLoaded', function () {
             };
 
             socket.emit('draw', drawData);
-            storeShapeData(drawData);
         }
 
         prevMouseX = e.offsetX;
@@ -196,61 +161,71 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Draw on canvas when receiving data from the server
     function drawOnCanvas(data) {
-        if (!data || !data.tool || !data.x0 || !data.y0 || !data.x1 || !data.y1) {
-            console.error('Invalid draw data:', data);
-            return;
+        try {
+            if (!data || !data.x0 || !data.y0 || !data.x1 || !data.y1 || !data.color || !data.lineWidth || !data.tool) {
+                console.error('Invalid draw data:', data);
+                return;
+            }
+
+            ctx.strokeStyle = data.color;
+            ctx.lineWidth = data.lineWidth;
+            ctx.beginPath();
+
+            if (data.tool === 'rectangle') {
+                const x = Math.min(data.x0, data.x1);
+                const y = Math.min(data.y0, data.y1);
+                const width = Math.abs(data.x0 - data.x1);
+                const height = Math.abs(data.y0 - data.y1);
+
+                if (!data.fillColor) {
+                    ctx.strokeRect(x, y, width, height);
+                } else {
+                    ctx.fillStyle = data.color;
+                    ctx.fillRect(x, y, width, height);
+                }
+            } else if (data.tool === 'circle') {
+                let radius = Math.sqrt(Math.pow((data.x0 - data.x1), 2) + Math.pow((data.y0 - data.y1), 2));
+                ctx.arc(data.x0, data.y0, radius, 0, 2 * Math.PI);
+                if (data.fillColor) {
+                    ctx.fillStyle = data.color;
+                    ctx.fill();
+                } else {
+                    ctx.stroke();
+                }
+            } else if (data.tool === 'triangle') {
+                ctx.moveTo(data.x0, data.y0);
+                ctx.lineTo(data.x1, data.y1);
+                ctx.lineTo(data.x0 * 2 - data.x1, data.y1);
+                ctx.closePath();
+                if (data.fillColor) {
+                    ctx.fillStyle = data.color;
+                    ctx.fill();
+                } else {
+                    ctx.stroke();
+                }
+            } else {
+                ctx.moveTo(data.x0, data.y0);
+                ctx.lineTo(data.x1, data.y1);
+                ctx.stroke();
+            }
+
+            ctx.closePath();
+        } catch (error) {
+            console.error('Error drawing on canvas:', error);
         }
-
-        ctx.strokeStyle = data.color;
-        ctx.lineWidth = data.lineWidth;
-        ctx.beginPath();
-
-        if (data.tool === 'rectangle') {
-            drawRect(data.x0, data.y0, data.x1, data.y1);
-        } else if (data.tool === 'circle') {
-            drawCircle(data.x0, data.y0, data.x1, data.y1);
-        } else if (data.tool === 'triangle') {
-            drawTriangle(data.x0, data.y0, data.x1, data.y1);
-        } else {
-            ctx.moveTo(data.x0, data.y0);
-            ctx.lineTo(data.x1, data.y1);
-            ctx.stroke();
-        }
-
-        ctx.closePath();
-        storeShapeData(data); // Store the received shape data
     }
 
     // Listen for incoming drawing data
     socket.on('drawing', (data) => {
-        drawOnCanvas(data);
-    });
+        drawOnCanvas(data);  
+              shapes.push(data); // Store received shapes
 
-    // Handle clearing the canvas
-    socket.on('clearCanvas', () => {
-        shapes = [];
-        setCanvasBackground();
     });
 
     // Event listeners for drawing
     canvas.addEventListener('mousedown', startDrawing);
     canvas.addEventListener('mousemove', handleDrawing);
     canvas.addEventListener('mouseup', () => {
-        if (selectedTool === 'rectangle' || selectedTool === 'circle' || selectedTool === 'triangle') {
-            const drawData = {
-                roomId: roomId,
-                tool: selectedTool,
-                color: selectedColor,
-                lineWidth: brushWidth,
-                x0: startX,
-                y0: startY,
-                x1: prevMouseX,
-                y1: prevMouseY
-            };
-
-            socket.emit('draw', drawData);
-            storeShapeData(drawData);
-        }
         isDrawing = false;
         canvas.style.cursor = 'default';
     });
@@ -268,54 +243,73 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.getElementById('brush').addEventListener('click', () => {
         selectedTool = 'brush';
-        canvas.style.cursor = 'default';
+        canvas.style.cursor = 'crosshair';
         updateToolIndicator('brush');
     });
 
     document.getElementById('eraser').addEventListener('click', () => {
         selectedTool = 'eraser';
-        canvas.style.cursor = 'default';
+        canvas.style.cursor = 'crosshair';
         updateToolIndicator('eraser');
     });
 
-    // Event listeners for shape tools
     document.getElementById('rectangle').addEventListener('click', () => {
         selectedTool = 'rectangle';
-        canvas.style.cursor = 'default';
+        canvas.style.cursor = 'crosshair';
         updateToolIndicator('rectangle');
     });
 
     document.getElementById('circle').addEventListener('click', () => {
         selectedTool = 'circle';
-        canvas.style.cursor = 'default';
+        canvas.style.cursor = 'crosshair';
         updateToolIndicator('circle');
     });
 
     document.getElementById('triangle').addEventListener('click', () => {
         selectedTool = 'triangle';
-        canvas.style.cursor = 'default';
+        canvas.style.cursor = 'crosshair';
         updateToolIndicator('triangle');
     });
 
-    // Update the tool indicator
-    function updateToolIndicator(tool) {
-        document.querySelectorAll('.tool').forEach(el => {
-            if (el.id === tool) {
-                el.style.backgroundColor = '#FFD700'; // Highlight in yellow
-            } else {
-                el.style.backgroundColor = ''; // Reset background color
-            }
-        });
-    }
+    // Handle brush size change
+    const sizeSlider = document.getElementById('sizeSlider');
+    sizeSlider.addEventListener('input', () => {
+        brushWidth = sizeSlider.value;
+    });
 
-    // Initialize the room
+    // Handle color picker change
+    const colorPicker = document.getElementById('colorPicker');
+    colorPicker.addEventListener('input', () => {
+        selectedColor = colorPicker.value;
+        ctx.strokeStyle = selectedColor;
+        ctx.fillStyle = selectedColor;
+    });
+
+    // Clear the canvas
+    const clearCanvasBtn = document.getElementById('clearCanvasBtn');
+    clearCanvasBtn.addEventListener('click', () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        setCanvasBackground();
+    });
+
+    // Zoom functionality
+    document.getElementById('zoomIn').addEventListener('click', () => {
+        scale *= 1.1;
+        canvas.style.transform = `scale(${scale})`;
+    });
+
+    document.getElementById('zoomOut').addEventListener('click', () => {
+        scale /= 1.1;
+        canvas.style.transform = `scale(${scale})`;
+    });
+
+    // Join the room when the page loads
     joinRoom(roomId);
-
-
+    
     // Update the tool indicator and highlight
     function updateToolIndicator(selected) {
         const tools = ['pan', 'brush', 'eraser', 'rectangle', 'circle', 'triangle'];
-
+        
         tools.forEach(tool => {
             const toolBtn = document.getElementById(tool);
             if (tool === selected) {
